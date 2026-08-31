@@ -1,7 +1,7 @@
 name: Auto Fetch and Sign Nuvio WGT
 
 on:
-  workflow_dispatch: # يتيح لك تشغيل التوقيع بضغطة زر واحدة يدوياً
+  workflow_dispatch: # تشغيل يدوي بضغطة زر
 
 jobs:
   download-and-sign:
@@ -11,30 +11,26 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. تحميل أحدث ملف WGT غير موقع مباشرة من صفحة Releases التطبيق
+      # 1. تحميل أدوات Tizen CLI الرسمية والخفيفة داخل سيرفر GitHub أوتوماتيكياً
+      - name: Setup Tizen CLI
+        uses: chbndrhnns/tizen-cli-action@v1
+
+      # 2. تحميل ملف الـ WGT غير الموقع من صفحة Releases التطبيق
       - name: Fetch Unsigned WGT
         run: |
           curl -L -o nuvio_unsigned.wgt https://github.com/NuvioMedia/NuvioTVSmart/releases
-      # 2. إعداد بيئة تايزن
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
 
-      - name: Install Tizen CLI Tools
-        run: npm install -g tizen-tv-cli
-
-      # 3. دمج شهادتك الرسمية من الإعدادات
+      # 3. تهيئة الشهادة الرسمية وتجهيز الملف السري للتوقيع
       - name: Setup Certificate Profile
         run: |
           echo "${{ secrets.AUTHOR_CERT }}" > author.cer
           tizen security-profiles add -n MyProfile -a author.cer -p "${{ secrets.AUTHOR_PASSWORD }}"
 
-      # 4. توقيع الملف تلقائياً
+      # 4. توقيع الملف تلقائياً باستخدام الأدوات الرسمية
       - name: Sign WGT Package
         run: tizen package -t wgt -s MyProfile -- nuvio_unsigned.wgt
 
-      # 5. إخراج الملف الموقع لتحميله فوراً
+      # 5. إخراج الملف الموقع لتحميله فوراً إلى جهازك
       - name: Upload Signed WGT
         uses: actions/upload-artifact@v4
         with:
