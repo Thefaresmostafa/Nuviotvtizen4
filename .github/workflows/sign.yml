@@ -1,48 +1,42 @@
-name: Sign Tizen WGT File
+name: Auto Fetch and Sign Nuvio WGT
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_dispatch: # يتيح لك تشغيل التوقيع بضغطة زر واحدة يدوياً
 
 jobs:
-  sign-wgt:
+  download-and-sign:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # إعداد بيئة Node.js لتشغيل أدوات التوقيع السريعة
+      # 1. تحميل أحدث ملف WGT غير موقع مباشرة من صفحة Releases التطبيق
+      - name: Fetch Unsigned WGT
+        run: |
+          curl -L -o nuvio_unsigned.wgt https://github.com/NuvioMedia/NuvioTVSmart/releases
+      # 2. إعداد بيئة تايزن
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      # تثبيت أداة التوقيع الرسمية من تايزن عبر حزم npm أونلاين
       - name: Install Tizen CLI Tools
         run: npm install -g tizen-tv-cli
 
-      # تهيئة الشهادة الرسمية وتجهيز الملف السري للتوقيع
+      # 3. دمج شهادتك الرسمية من الإعدادات
       - name: Setup Certificate Profile
         run: |
           echo "${{ secrets.AUTHOR_CERT }}" > author.cer
           tizen security-profiles add -n MyProfile -a author.cer -p "${{ secrets.AUTHOR_PASSWORD }}"
 
-      # البحث عن ملف الـ WGT المرفوع وتوقيعه فوراً
+      # 4. توقيع الملف تلقائياً
       - name: Sign WGT Package
-        run: |
-          WGT_FILE=$(find . -name "*.wgt" -type f | head -n 1)
-          if [ -z "$WGT_FILE" ]; then
-            echo "Error: Please upload your .wgt file to the repository first!" && exit 1
-          fi
-          tizen package -t wgt -s MyProfile -- "$WGT_FILE"
+        run: tizen package -t wgt -s MyProfile -- nuvio_unsigned.wgt
 
-      # رفع الملف الموقع لتقوم بتحميله إلى جهازك
-      - name: Upload Signed WGT as Artifact
+      # 5. إخراج الملف الموقع لتحميله فوراً
+      - name: Upload Signed WGT
         uses: actions/upload-artifact@v4
         with:
-          name: signed-wgt-files
-          path: '**/*.wgt'
-          retention-days: 30
+          name: Nuvio-TV-Signed-Tizen4
+          path: 'nuvio_unsigned.wgt'
