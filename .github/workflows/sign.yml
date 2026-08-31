@@ -1,4 +1,4 @@
-name: Auto Fetch and Sign Nuvio WGT
+name: Auto Generate Cert and Sign WGT
 
 on:
   workflow_dispatch: # تشغيل يدوي بضغطة زر
@@ -8,14 +8,14 @@ permissions:
   actions: write
 
 jobs:
-  download-and-sign:
+  generate-and-sign:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. جلب أحدث إصدار مستقر ومباشر من التطبيق الرسمي لتايزن
+      # 1. جلب أحدث إصدار مستقر من حزمة التطبيق الرسمية لتايزن
       - name: Fetch Latest WGT Link from Releases
         run: |
           LATEST_WGT_URL=$(curl -s https://github.com | grep "browser_download_url.*wgt" | head -n 1 | cut -d '"' -f 4)
@@ -25,22 +25,23 @@ jobs:
           echo "Downloading from: $LATEST_WGT_URL"
           curl -L -o nuvio_unsigned.wgt "$LATEST_WGT_URL"
 
-      # 2. تجهيز ملف الشهادة الرقمية الخاصة بك داخل السيرفر
-      - name: Prepare Certificate File
-        run: |
-          echo "${{ secrets.AUTHOR_CERT }}" > author.cer
-
-      # 3. التوقيع باستخدام الحاوية الرسمية والمثبتة لتايزن (تم التأكد من الرابط والاسم بنسبة 100%)
-      - name: Sign WGT Package via Verified Tizen Container
+      # 2. إنشاء شهادة تايزن جديدة وتوقيع الملف بداخل حاوية Docker مباشرة
+      - name: Create New Certificate and Sign
         run: |
           docker run --rm -v $(pwd):/workspace -w /workspace vitalets/tizen-webos-sdk:latest sh -c "
-            tizen security-profiles add -n MyProfile -a author.cer -p '${{ secrets.AUTHOR_PASSWORD }}' &&
-            tizen package -t wgt -s MyProfile -- nuvio_unsigned.wgt
+            # إنشاء شهادة جديدة بكلمة سر مخصصة (مثال: MyPassword123) اسم المطور (Fares)
+            tizen certificate -a Fares -p MyPassword123 -f MyNewCert &&
+            
+            # تسجيل الشهادة الجديدة في النظام
+            tizen security-profiles add -n NewProfile -a MyNewCert.p12 -p MyPassword123 &&
+            
+            # توقيع ملف الـ WGT فوراً بالشهادة الجديدة
+            tizen package -t wgt -s NewProfile -- nuvio_unsigned.wgt
           "
 
-      # 4. رفع وتصدير ملف الـ WGT النهائي الموقع والجاهز للتثبيت
+      # 3. رفع وتصدير ملف الـ WGT النهائي الموقع الجاهز لتلفزيونك
       - name: Upload Signed WGT
         uses: actions/upload-artifact@v4
         with:
-          name: Nuvio-TV-Latest-Signed
+          name: Nuvio-TV-Ready-To-Install
           path: 'nuvio_unsigned.wgt'
