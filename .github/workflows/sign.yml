@@ -11,13 +11,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. تحميل وتثبيت أداة Tizen CLI الرسمية مباشرة من سيرفر سامسونج وتحديث المسارات
+      # 1. تثبيت الحزم المتوافقة مع Ubuntu الحديث لتشغيل أدوات سامسونج
       - name: Install Official Tizen CLI
         run: |
           sudo apt update
-          sudo apt install -y pciutils zip libncurses5
-          curl -L http://download.tizen.org/sdk/Installer/tizen-studio_4.1/web-cli_Tizen_Studio_4.1_ubuntu-64.bin -o install.bin
+          sudo apt install -y pciutils zip libncurses6 libncursesw6
+          curl -L http://tizen.org -o install.bin
           chmod a+x install.bin
+          # التثبيت في المسار الصامت لتجنب النوافذ التفاعلية
           ./install.bin --accept-license ~/tizen-studio-cli
           echo "~/tizen-studio-cli/tools/ide/bin" >> $GITHUB_PATH
 
