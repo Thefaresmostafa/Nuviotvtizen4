@@ -25,17 +25,20 @@ jobs:
           echo "Downloading from: $LATEST_WGT_URL"
           curl -L -o nuvio_unsigned.wgt "$LATEST_WGT_URL"
 
-      # 2. إنشاء شهادة تايزن جديدة وتوقيع الملف بداخل حاوية Docker مباشرة
+      # 2. إنشاء شهادة تايزن في المسار الصحيح وتوقيع الملف مباشرة
       - name: Create New Certificate and Sign
         run: |
           docker run --rm -v $(pwd):/workspace -w /workspace vitalets/tizen-webos-sdk:latest sh -c "
-            # إنشاء شهادة جديدة بكلمة سر مخصصة (مثال: MyPassword123) اسم المطور (Fares)
+            # إنشاء الشهادة
             tizen certificate -a Fares -p MyPassword123 -f MyNewCert &&
             
-            # تسجيل الشهادة الجديدة في النظام
+            # نقل ملف الشهادة إلى المجلد الحالي لتراها الأداة
+            cp /home/developer/tizen-studio-data/keystore/author/MyNewCert.p12 . &&
+            
+            # تسجيل الشهادة في النظام
             tizen security-profiles add -n NewProfile -a MyNewCert.p12 -p MyPassword123 &&
             
-            # توقيع ملف الـ WGT فوراً بالشهادة الجديدة
+            # توقيع ملف الـ WGT فوراً
             tizen package -t wgt -s NewProfile -- nuvio_unsigned.wgt
           "
 
