@@ -1,7 +1,7 @@
-name: Auto Generate Cert and Sign WGT
+name: Auto Generate Cert and Sign Nuvio WGT
 
 on:
-  workflow_dispatch: # تشغيل يدوي بضغطة زر
+  workflow_dispatch: # تشغيل يدوي بضغطة زر واحدة
 
 permissions:
   contents: write
@@ -15,36 +15,31 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. جلب أحدث إصدار مستقر من حزمة التطبيق الرسمية لتايزن
-      - name: Fetch Latest WGT Link from Releases
+      # 1. تحميل ملف الـ WGT المخصص لتايزن إصدار 1.0.1 بالرابط الذي حددته
+      - name: Fetch Selected Nuvio Tizen WGT
         run: |
-          LATEST_WGT_URL=$(curl -s https://github.com | grep "browser_download_url.*wgt" | head -n 1 | cut -d '"' -f 4)
-          if [ -z "$LATEST_WGT_URL" ]; then
-            LATEST_WGT_URL="https://github.com"
-          fi
-          echo "Downloading from: $LATEST_WGT_URL"
-          curl -L -o nuvio_unsigned.wgt "$LATEST_WGT_URL"
+          curl -L -o nuvio_unsigned.wgt https://github.com/NuvioMedia/NuvioTVSmart/releases/download/1.0.1/NuvioTV-Tizen-1.0.1.wgt
 
       # 2. إنشاء شهادة تايزن في المسار الصحيح وتوقيع الملف مباشرة
       - name: Create New Certificate and Sign
         run: |
           docker run --rm -v $(pwd):/workspace -w /workspace vitalets/tizen-webos-sdk:latest sh -c "
-            # إنشاء الشهادة
+            # إنشاء الشهادة الرقمية لتايزن
             tizen certificate -a Fares -p MyPassword123 -f MyNewCert &&
             
-            # نقل ملف الشهادة إلى المجلد الحالي لتراها الأداة
+            # نقل ملف الشهادة المحدث إلى مجلد العمل الحالي
             cp /home/developer/tizen-studio-data/keystore/author/MyNewCert.p12 . &&
             
-            # تسجيل الشهادة في النظام
+            # تسجيل الشهادة الجديدة ضمن الملفات التعريفية لأداة سامسونج
             tizen security-profiles add -n NewProfile -a MyNewCert.p12 -p MyPassword123 &&
             
-            # توقيع ملف الـ WGT فوراً
+            # التوقيع الرقمي الفوري لملف التطبيق
             tizen package -t wgt -s NewProfile -- nuvio_unsigned.wgt
           "
 
-      # 3. رفع وتصدير ملف الـ WGT النهائي الموقع الجاهز لتلفزيونك
+      # 3. تصدير ورفع ملف الـ WGT النهائي الموقّع بنجاح لتنزيله
       - name: Upload Signed WGT
         uses: actions/upload-artifact@v4
         with:
-          name: Nuvio-TV-Ready-To-Install
+          name: NuvioTV-Tizen-1.0.1-Signed
           path: 'nuvio_unsigned.wgt'
