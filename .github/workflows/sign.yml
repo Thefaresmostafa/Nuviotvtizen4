@@ -11,26 +11,33 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. تحميل أدوات Tizen CLI الرسمية والخفيفة داخل سيرفر GitHub أوتوماتيكياً
-      - name: Setup Tizen CLI
-        uses: chbndrhnns/tizen-cli-action@v1
+      # 1. تحميل وتثبيت أداة Tizen CLI الرسمية مباشرة من سيرفر سامسونج وتحديث المسارات
+      - name: Install Official Tizen CLI
+        run: |
+          sudo apt update
+          sudo apt install -y pciutils zip libncurses5
+          curl -L http://download.tizen.org/sdk/Installer/tizen-studio_4.1/web-cli_Tizen_Studio_4.1_ubuntu-64.bin -o install.bin
+          chmod a+x install.bin
+          ./install.bin --accept-license ~/tizen-studio-cli
+          echo "~/tizen-studio-cli/tools/ide/bin" >> $GITHUB_PATH
 
-      # 2. تحميل ملف الـ WGT غير الموقع من صفحة Releases التطبيق
+      # 2. تحميل ملف الـ WGT غير الموقع الخاص بتطبيق Nuvio TV
       - name: Fetch Unsigned WGT
         run: |
           curl -L -o nuvio_unsigned.wgt https://github.com/NuvioMedia/NuvioTVSmart/releases
 
-      # 3. تهيئة الشهادة الرسمية وتجهيز الملف السري للتوقيع
+      # 3. تهيئة ملف الشهادة الخاصة بك وتجهيزها للتوقيع
       - name: Setup Certificate Profile
         run: |
           echo "${{ secrets.AUTHOR_CERT }}" > author.cer
-          tizen security-profiles add -n MyProfile -a author.cer -p "${{ secrets.AUTHOR_PASSWORD }}"
+          ~/tizen-studio-cli/tools/ide/bin/tizen security-profiles add -n MyProfile -a author.cer -p "${{ secrets.AUTHOR_PASSWORD }}"
 
-      # 4. توقيع الملف تلقائياً باستخدام الأدوات الرسمية
+      # 4. توقيع ملف الـ WGT تلقائياً
       - name: Sign WGT Package
-        run: tizen package -t wgt -s MyProfile -- nuvio_unsigned.wgt
+        run: |
+          ~/tizen-studio-cli/tools/ide/bin/tizen package -t wgt -s MyProfile -- nuvio_unsigned.wgt
 
-      # 5. إخراج الملف الموقع لتحميله فوراً إلى جهازك
+      # 5. إخراج ملف الـ WGT الموقع والجاهز للتحميل
       - name: Upload Signed WGT
         uses: actions/upload-artifact@v4
         with:
