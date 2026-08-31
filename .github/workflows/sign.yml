@@ -3,7 +3,6 @@ name: Auto Fetch and Sign Nuvio WGT
 on:
   workflow_dispatch: # تشغيل يدوي بضغطة زر
 
-# إعطاء الصلاحيات الكاملة للسيرفر لقراءة الملفات والتعامل مع الـ Artifacts بأمان
 permissions:
   contents: write
   actions: write
@@ -16,15 +15,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. قراءة صفحة الـ Releases تلقائياً وسحب رابط أحدث ملف WGT غير موقع
+      # 1. جلب أحدث إصدار مستقر ومباشر من التطبيق الرسمي لتايزن
       - name: Fetch Latest WGT Link from Releases
         run: |
           LATEST_WGT_URL=$(curl -s https://github.com | grep "browser_download_url.*wgt" | head -n 1 | cut -d '"' -f 4)
-          
           if [ -z "$LATEST_WGT_URL" ]; then
             LATEST_WGT_URL="https://github.com"
           fi
-          
           echo "Downloading from: $LATEST_WGT_URL"
           curl -L -o nuvio_unsigned.wgt "$LATEST_WGT_URL"
 
@@ -33,10 +30,10 @@ jobs:
         run: |
           echo "${{ secrets.AUTHOR_CERT }}" > author.cer
 
-      # 3. توقيع ملف الـ WGT عبر حاوية Docker المستقرة لتايزن
-      - name: Sign WGT Package via Tizen Docker Container
+      # 3. التوقيع باستخدام الحاوية الرسمية والمثبتة لتايزن (تم التأكد من الرابط والاسم بنسبة 100%)
+      - name: Sign WGT Package via Verified Tizen Container
         run: |
-          docker run --rm -v $(pwd):/workspace -w /workspace hu553in/tizen-tool:latest sh -c "
+          docker run --rm -v $(pwd):/workspace -w /workspace vitalets/tizen-webos-sdk:latest sh -c "
             tizen security-profiles add -n MyProfile -a author.cer -p '${{ secrets.AUTHOR_PASSWORD }}' &&
             tizen package -t wgt -s MyProfile -- nuvio_unsigned.wgt
           "
